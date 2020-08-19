@@ -1,3 +1,6 @@
+tests/
+docs/
+old/
 venv
 dist
 *.egg-info
@@ -5,11 +8,9 @@ dist
 build
 .coverage
 .tox
-docs/
 *.backup
 .DS_Store
 .ipynb*
 .github
 .pypi-template
-tests/
-iot-device/
+.envrc
