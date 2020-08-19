@@ -5,8 +5,11 @@ dist
 build
 .coverage
 .tox
-docs/_build
+docs/
 *.backup
 .DS_Store
 .ipynb*
 .github
+.pypi-template
+tests/
+iot-device/
