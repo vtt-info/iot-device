@@ -3,11 +3,10 @@ from .config_store import Config
 from termcolor import colored
 
 from datetime import datetime
-import logging
 import os
+import logging
 
-
-logger = logging.getLogger("iot49." + __name__)
+logger = logging.getLogger(__file__)
 
 
 """
@@ -22,11 +21,11 @@ class Rsync(Fcopy):
     def __init__(self, connection):
         super().__init__(connection)
 
-    def rlist(self, output, path):
+    def rlist(self, output, path='/'):
         logger.debug(f"rlist {path}")
         self.__mcu_list(ListOutput(output), path)
 
-    def rdiff(self, output, path, projects=['base']):
+    def rdiff(self, output, path='/', projects=['base']):
         mcu_files = self.mcu_files(output, path)
         host_files = self.host_files(path, projects)
         # add files from host
@@ -48,11 +47,11 @@ class Rsync(Fcopy):
             { k: host_files[k][0] for k in to_update }
         )
 
-    def rsync(self, output, path, projects=['base'], dry_run=True):
+    def rsync(self, output, path='/', projects=['base'], dry_run=True):
         logger.debug(f"rsync {path} projects={projects}")
         if not dry_run:
             # sync mcu time to host if they differ by more than 3 seconds
-            self.repl_ops.sync_time(3)
+            self.sync_time(3)
         add_, del_, upd_ = self.rdiff(output, path, projects)
         if add_ or del_ or upd_:
             for a,p in add_.items():
@@ -71,7 +70,7 @@ class Rsync(Fcopy):
                 if not dry_run:
                     self.fput(p, u)
         else:
-            self.output.ans("Directories match\n")
+            output.ans("Directories match\n")
 
     def mcu_files(self, output, path):
         """Dict of all files and directories on MCU.

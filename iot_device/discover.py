@@ -1,5 +1,3 @@
-from .rsync import Rsync
-
 from abc import ABC, abstractmethod
 import threading
 import logging
@@ -19,23 +17,19 @@ Iterate over all known devices (regardless of age):
 class Discover(ABC):
 
     def __init__(self):
-        # maintain two dicts (add only, so consistency is no issue):
-        #   __devices: uid --> device
-        #   __connections: connection_hash --> device
+        # __devices: uid --> device
         self.__devices = {}
         self.__devices_lock = threading.Lock()
-        self.__connections = {}
 
-    def add_device(self, connection):
+    def add_device(self, device):
         """Add device to dict; set age to zero if it is already in the dict."""   
-        dev = self.__connections.get(connection.__hash__())
+        dev = self.__devices.get(device.uid)
         if dev:
             # device already registerd, mark as seen
             dev.seen()
         # new device
-        dev = Rsync(connection)
         with self.__devices_lock:
-            self.__devices[dev.uid] = dev
+            self.__devices[device.uid] = device
 
     def get_device(self, uid):
         with self.__devices_lock:
@@ -43,6 +37,7 @@ class Discover(ABC):
 
     def __enter__(self):
         self.__devices_lock.acquire()
+        print(f"Discover.__enter__ __devices={self.__devices} values={self.__devices.values()} {type(self.__devices.values())}")
         return self.__devices.values()
 
     def __exit__(self, type, value, traceback):

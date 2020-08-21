@@ -1,4 +1,4 @@
-from .device import Device, BUFFER_SIZE
+from .repl import Repl, BUFFER_SIZE
 from .config_store import Config
 
 import binascii
@@ -15,7 +15,7 @@ Device with added features:
 """
 
 
-class Fcopy(Device):
+class Fcopy(Repl):
 
     def __init__(self, connection):
         super().__init__(connection)

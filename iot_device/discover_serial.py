@@ -1,5 +1,6 @@
 from .discover import Discover
-from .serial_connection import SerialConnection
+from .repl import ReplException
+from .serial_device import SerialDevice
 
 import time
 import logging
@@ -27,11 +28,10 @@ class DiscoverSerial(Discover):
         try:
             for port in serial.tools.list_ports.comports():
                 if port.vid in COMPATIBLE_VID:
-                    # print(f"discovered {port.device}")
-                    con = SerialConnection(port.device, f"{port.product} by {port.manufacturer}")
-                    self.add_device(con)
+                    dev = SerialDevice(port.device, f"{port.product} by {port.manufacturer}")
+                    self.add_device(dev)
                 elif port.vid:
-                    print("found {} with unknown VID {:02X} (ignored)".format(port, port.vid))
+                    logger.info("found {} with unknown VID {:02X} (ignored)".format(port, port.vid))
         except Exception as e:
             logger.exception(f"Error in scan: {e}")
 
@@ -40,10 +40,12 @@ class DiscoverSerial(Discover):
 
 class Output:
     def ans(self, value):
-        print(value.decode(), flush=True, end="")
+        if isinstance(value, bytes): value = value.decode()
+        print(value, flush=True, end="")
 
     def err(self, value):
-        print(value.decode(), flush=True, end="")
+        if isinstance(value, bytes): value = value.decode()
+        print(value, flush=True, end="")
 
 code = [
 
@@ -89,29 +91,38 @@ def main():
     while True:
         ds.scan()
         with ds as devices:
-            for d in devices.values():
-                if d.age > 1:
-                    print(f"skipping old device {d}")
+            print(f"devices {devices} {type(devices)}")
+            for dev in devices:
+                print('\n', '-'*40, dev)
+                if dev.age > 1:
+                    print(f"skipping old device")
                     continue
-                print(f"before sync: get_time = {d.get_time()}")
-                d.sync_time()
-                print(f"after  sync: get_time = {d.get_time()}")
+                with dev as repl:
+                    print(f"before sync: get_time = {repl.get_time()}")
+                    repl.sync_time()
+                    print(f"after  sync: get_time = {repl.get_time()}")
 
-                for c in code:
-                    print('-'*50)
-                    try:
-                        if c == "softreset":
-                            print("SOFTRESET")
-                            d.softreset()
-                        elif c == "uid":
-                            print(f"UID {d.uid}")
-                        else:
-                            print(f"EVAL {c}")
-                            d.eval(c, Output())
-                    except ReplException as re:
-                        print(f"***** ERROR {re}")    
+                    for c in code:
+                        print('-'*50)
+                        try:
+                            if c == "softreset":
+                                print("SOFTRESET")
+                                repl.softreset()
+                            elif c == "uid":
+                                print(f"UID {repl.uid}")
+                            else:
+                                print(f"EVAL {c}")
+                                repl.eval(c, Output())
+                        except ReplException as re:
+                            print(f"***** ERROR {re}")
+                    print('-'*10, 'rlist')
+                    repl.rlist(Output())
+                    print('-'*10, 'rdiff')
+                    repl.rdiff(Output())
+                    print('-'*10, 'rsync')
+                    repl.rsync(Output())
             print()           
-        time.sleep(3)
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()

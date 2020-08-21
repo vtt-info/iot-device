@@ -17,38 +17,6 @@ class Config:
 
 
     @staticmethod
-    def __uid(host_name):
-        """uid from host_name."""
-        # brute force search is ok assuming small hosts table ...
-        for k,v in Config.hosts().items():
-            if isinstance(v, str) and v == host_name:
-                return k
-            if isinstance(v, dict) and v.get('name') == host_name:
-                return k
-        return None
-
-
-    @staticmethod
-    def __host_name(uid):
-        """host_name from uid."""
-        h = Config.hosts().get(uid)
-        if isinstance(h, str):
-            return h
-        elif isinstance(h, dict):
-            return h.get('name')
-        return uid
-
-
-    @staticmethod
-    def __host_projects(uid):
-        """Projects list from uid."""
-        h = Config.hosts().get(uid)
-        if isinstance(h, dict):
-            return h.get('projects')
-        return ['base']
-
-
-    @staticmethod
     def config():
         """Config as a dict."""
         return Config.get_config('config.py')
@@ -90,22 +58,6 @@ class Config:
 
 
 def main():
-    print("Hosts:")
-    for k,v in Config.hosts().items():
-        print(f"{k:50} -> {v}")
-
-    print("\nHostname --> UID:")
-    queries = [ 'cory', 'aqi_xenon', 'unknown', 'scale_m4', 'esp32' ]
-    for q in queries:
-        print("  {:20} {}".format(q, Config.uid(q)))
-    uid = [ '0d:df:67:a7:f6:93:f4:39', 'cf:ec:09:07:44:72:94:6f', 'unknown' ]
-
-    print("\nUID --> Hostname:")
-    for u in uid:
-        print("  {:40}  {:20}  {}".format(u,
-                repr(Config.host_name(u)),
-                repr(Config.host_projects(u))))
-
     print("\nQueries:")
     queries = [
         ('wifi_ssid', None),
