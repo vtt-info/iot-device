@@ -1,6 +1,7 @@
 tests/
 docs/
 old/
+tmp/
 venv
 dist
 *.egg-info
@@ -14,3 +15,5 @@ build
 .github
 .pypi-template
 .envrc
+.direnv
+test.sh

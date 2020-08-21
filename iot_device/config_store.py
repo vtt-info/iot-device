@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+from .default_config import default_config
+from .version import __version__
+import sys
+import os
+
+"""Singleton for accssing config.py and default_config.py"""
+
+
+class Config:
+
+    @staticmethod
+    def get(name, default=None):
+        """Return setting or default."""
+        return Config.config().get(name, default)
+
+
+    @staticmethod
+    def __uid(host_name):
+        """uid from host_name."""
+        # brute force search is ok assuming small hosts table ...
+        for k,v in Config.hosts().items():
+            if isinstance(v, str) and v == host_name:
+                return k
+            if isinstance(v, dict) and v.get('name') == host_name:
+                return k
+        return None
+
+
+    @staticmethod
+    def __host_name(uid):
+        """host_name from uid."""
+        h = Config.hosts().get(uid)
+        if isinstance(h, str):
+            return h
+        elif isinstance(h, dict):
+            return h.get('name')
+        return uid
+
+
+    @staticmethod
+    def __host_projects(uid):
+        """Projects list from uid."""
+        h = Config.hosts().get(uid)
+        if isinstance(h, dict):
+            return h.get('projects')
+        return ['base']
+
+
+    @staticmethod
+    def config():
+        """Config as a dict."""
+        return Config.get_config('config.py')
+
+
+    @staticmethod
+    def __hosts():
+        """Hosts as a dict."""
+        return Config.get_config('hosts.py').get('hosts', {})
+
+
+    _config_cache = {}
+
+
+    @staticmethod
+    def get_config(file='config.py'):
+        """Load configuration from cache or disk."""
+        # check mtime
+        iot49_dir = os.path.expanduser(os.getenv('IOT49', '~'))
+        config_file = os.path.join(iot49_dir, 'mcu/base', file)
+        mtime = os.path.getmtime(config_file)
+        # check cache
+        config, last_mtime = Config._config_cache.get(file, (None, 0))
+        if not config or mtime > last_mtime:
+            try:
+                config = default_config.copy()
+                with open(config_file) as f:
+                    exec(f.read(), config)
+                del config['__builtins__']
+                config['version'] = __version__
+                Config._config_cache[file] = (config, mtime)
+            except NameError as ne:
+                sys.exit("{} while reading {}".format(ne, config_file))
+            except OSError as ose:
+                sys.exit("{} while reading {}".format(ose, config_file))
+            except SyntaxError as se:
+                sys.exit("{} in {}".format(se, config_file))
+        return config
+
+
+def main():
+    print("Hosts:")
+    for k,v in Config.hosts().items():
+        print(f"{k:50} -> {v}")
+
+    print("\nHostname --> UID:")
+    queries = [ 'cory', 'aqi_xenon', 'unknown', 'scale_m4', 'esp32' ]
+    for q in queries:
+        print("  {:20} {}".format(q, Config.uid(q)))
+    uid = [ '0d:df:67:a7:f6:93:f4:39', 'cf:ec:09:07:44:72:94:6f', 'unknown' ]
+
+    print("\nUID --> Hostname:")
+    for u in uid:
+        print("  {:40}  {:20}  {}".format(u,
+                repr(Config.host_name(u)),
+                repr(Config.host_projects(u))))
+
+    print("\nQueries:")
+    queries = [
+        ('wifi_ssid', None),
+        ('repl_adv_port', None),
+        ('none', None),
+    ]
+    for q in queries:
+        print("  {:20}  {}".format(q[0], Config.get(*q)))
+
+    print("\nAll configuration values:")
+    for k, v in Config.config().items():
+        print("  {:20}  {}".format(k, v))
+
+if __name__ == "__main__":
+    main()
