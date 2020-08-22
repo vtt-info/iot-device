@@ -16,5 +16,4 @@ build
 .pypi-template
 .envrc
 .direnv
-*.sh
-requirements.txt
+test.sh
