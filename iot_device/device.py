@@ -10,10 +10,14 @@ logger = logging.getLogger(__file__)
 
 class Device(ABC):
 
-    def __init__(self):
+    def __init__(self, uid=None):
         self.__lock = threading.Lock()
-        with self as repl:
-            self.__uid = repl.uid
+        if uid:
+            self.__uid = uid
+        else:
+            with self as repl:
+                self.__uid = repl.uid
+        logger.debug(f"Created {self}")
 
     @property
     def uid(self):
@@ -22,12 +26,12 @@ class Device(ABC):
     @abstractmethod
     def read(self, size=1) -> bytes:
         """Read size bytes"""
-        return b''
+        pass
 
     @abstractmethod
     def read_all(self) -> bytes:
         """Read all available data"""
-        return b''
+        pass
 
     @abstractmethod
     def write(self, data: bytes):
@@ -35,12 +39,11 @@ class Device(ABC):
         pass
 
     @abstractmethod
-    def close(self):
+    def __hash__(self):
         pass
 
-    @abstractmethod
-    def __hash__(self):
-        return self.__uid
+    def close(self):
+        pass
 
     def read_until(self, pattern: bytes, timeout=5):
         """Read until pattern

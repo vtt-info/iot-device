@@ -216,36 +216,3 @@ class PathOutput:
 
     def err(self, b):
         self.output.err(b)
-
-##########################################################################
-# Example
-
-class Output:
-    def ans(self, value):
-        if isinstance(value, bytes): value = value.decode()
-        print(value, flush=True, end="")
-
-    def err(self, value):
-        print(value, flush=True, end="")
-
-def main():
-    from .discover_serial import DiscoverSerial
-    ds = DiscoverSerial()
-    ds.scan()
-    with ds as devices:
-        for dev in devices:
-            if True:
-                dev.rlist(Output(), '/')
-                host_dir = f"{os.getenv('IOT49')}/mcu"
-                print("\n------- host_files", host_dir)
-                print(dev.host_files('.', ['base', 'demo']))
-                print("\n------- mcu_files", '/')
-                print(dev.mcu_files(Output(), '/'))
-                print()
-                print("\n------- rdiff", '/')
-                print(dev.rdiff(Output(), '/'))
-            print("\n------- rsync", '/')
-            dev.rsync(Output(), '/', projects=['base', 'lib'], dry_run=True)
-
-if __name__ == "__main__":
-    main()

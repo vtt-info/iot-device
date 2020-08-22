@@ -42,6 +42,8 @@ class Repl:
 
     @property
     def uid(self):
+        # Note: Device caches this, could retrieve from there
+        # But - beware of recursion - Device calls Repl.uid!
         return self.eval_func(_uid)
 
     @property
@@ -82,7 +84,7 @@ class Repl:
             start_time = time.monotonic()
             self.__exec_part_1(func_str)
             if xfer_func:
-                xfer_func(self, *args, **kwargs)
+                xfer_func(self.device, *args, **kwargs)
                 logger.debug(f"returned from xfer_func")
             output = self.__exec_part_2(output)
             logger.debug("eval_func: {}({}) --> {},   in {:.3} s)".format(
@@ -166,8 +168,9 @@ class Repl:
                 if result.count(EOT) > 1:
                     break
             s = result.split(EOT)
-            logger.debug(f"repl_ops s={s}")
+            logger.debug(f"repl s={s}")
             if len(s[1]) > 0:
+                # s[1] is exception
                 logger.debug(f"_exec_part_2 s={s} s[1]={s[1]}")
                 raise ReplException(s[1].decode())
             return s[0]
@@ -233,85 +236,3 @@ def _device_characteristics():
     epoch = 946684800-time.mktime(st)
 
     return { 'has_buffer': has_buffer, 'has_binascii': has_binascii, 'time_offset': epoch }
-
-##########################################################################
-# Example
-
-class Output:
-    def ans(self, value):
-        print(value.decode(), flush=True, end="")
-
-    def err(self, value):
-        print(value.decode(), flush=True, end="")
-
-code = [
-
-b"print(2**10)",
-
-"""
-for i in range(3):
-    print(i, i**2, i**3)
-""",
-
-"uid",
-
-"print('4/sf)",
-
-"""
-def a():
-    print('A')
-    # raise ValueError("a(): no value!")
-    print('returning from a()')
-
-def b():
-    print('B')
-    a()
-    print('returning from b()')
-
-def c():
-    print('C')
-    b()
-    print('returning from c()')
-
-c()
-# print("after exception")
-""",
-"a = 5",
-"print(a)",
-"softreset",
-"print(a)"
-
-]
-
-def main():
-    from .discover_serial import DiscoverSerial
-    ds = DiscoverSerial()
-    while True:
-        ds.scan()
-        with ds as devices:
-            for d in devices:
-                if d.age > 1:
-                    print(f"skipping old device {d}")
-                    continue
-                print(f"before sync: get_time = {d.get_time()}")
-                d.sync_time()
-                print(f"after  sync: get_time = {d.get_time()}")
-
-                for c in code:
-                    print('-'*50)
-                    try:
-                        if c == "softreset":
-                            print("SOFTRESET")
-                            d.softreset()
-                        elif c == "uid":
-                            print(f"UID {d.uid}")
-                        else:
-                            print(f"EVAL {c}")
-                            d.eval(c, Output())
-                    except ReplException as re:
-                        print(f"***** ERROR {re}")    
-            print()           
-        time.sleep(3)
-
-if __name__ == "__main__":
-    main()

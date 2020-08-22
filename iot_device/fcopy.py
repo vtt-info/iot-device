@@ -102,9 +102,9 @@ def _host_read(device, local_file, remote_file, filesize, binary):
             buf = src_file.read(read_size)
             if binary:
                 buf = binascii.hexlify(buf)
-            device.connection.write(buf)
+            device.write(buf)
             # Wait for ack so we don't get too far ahead of the remote
-            ack = device.connection.read(1)
+            ack = device.read(1)
             if ack != b'\x06':
                 logger.error(f"got {ack}, expected b'\\x06'")
                 return False
@@ -142,7 +142,7 @@ def _host_write(device, remote_file, local_file, filesize):
             buf_remaining = read_size
             buf_index = 0
             while buf_remaining > 0:
-                read_buf = device.connection.read(buf_remaining)
+                read_buf = device.read(buf_remaining)
                 bytes_read = len(read_buf)
                 if bytes_read:
                     write_buf[buf_index:bytes_read] = read_buf[0:bytes_read]
@@ -150,7 +150,7 @@ def _host_write(device, remote_file, local_file, filesize):
                     buf_remaining -= bytes_read
             dst_file.write((write_buf[0:read_size]))
             # Send an ack to the remote as a form of flow control
-            device.connection.write(b'\x06')   # ASCII ACK is 0x06
+            device.write(b'\x06')   # ASCII ACK is 0x06
             bytes_remaining -= read_size
 
 
@@ -203,46 +203,3 @@ def _cat(path):
             if not line:
                 break
             print(line, end="")
-
-
-
-##########################################################################
-# Example
-
-class Output:
-    def ans(self, value):
-        print(value.decode(), flush=True, end="")
-
-    def err(self, value):
-        print(value.decode(), flush=True, end="")
-
-def main():
-    from .discover_serial import DiscoverSerial
-    ds = DiscoverSerial()
-    ds.scan()
-    with ds as devices:
-        for dev in devices:
-            print(f"listfiles: {dev.eval_func(listfiles)}")
-            fn = 'lib/adafruit_requests.py'
-            print(f"cat({fn}):")
-            dev.cat(Output(), fn)
-            print('\n', '-'*10)
-            dev.fget('lib/adafruit_requests.py', 'tmp/adafruit_requests.py')
-            print('\n', '-'*10)
-            fn = 'delete_me.txt'
-            dev.fput(f'tmp/{fn}', fn)
-            print('\n', '-'*10)
-            print(f"cat({fn})")
-            dev.cat(Output(), fn)
-            print(f"new file {fn} on mcu ...")
-            print(f"listfiles: {dev.eval_func(listfiles)}")
-            print("after rm ...")
-            dev.rm_rf(fn)
-            print(f"listfiles: {dev.eval_func(listfiles)}")
-
-def listfiles():
-    from os import listdir
-    return listdir()
-
-if __name__ == "__main__":
-    main()

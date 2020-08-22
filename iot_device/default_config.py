@@ -3,6 +3,6 @@
 default_config = {
     'host_dir': '.', # '~/mcu',
     'mcu_dir': '/volumes/CIRCUITPY',
-    'advertise_port': 50000,
+    'advertise_port': 50002,
     'connection_server_port': 50001,
 }

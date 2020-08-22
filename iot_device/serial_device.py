@@ -16,13 +16,16 @@ class SerialDevice(Device):
         super().__init__()
 
     def __connect(self):
-        self.__serial = Serial(self.__port, self.__baudrate, parity='N')
+        try:
+            self.__serial = Serial(self.__port, self.__baudrate, parity='N', timeout=0.5)
+        except SerialException as se:
+            logger.info(f"SerialDevice: __connect failed {se}")
 
     def read(self, size=1):
         for _ in range(2):
             try:
                 return self.__serial.read(size)
-            except SerialException:
+            except (SerialException, OSError):
                 self.__connect()
         raise SerialException("read failed")
 
@@ -30,7 +33,7 @@ class SerialDevice(Device):
         for _ in range(2):
             try:
                 return self.__serial.read_all()
-            except SerialException:
+            except (SerialException, OSError):
                 self.__connect()
         raise SerialException("read_all failed")
 
@@ -42,19 +45,23 @@ class SerialDevice(Device):
                     n += self.__serial.write(data[i:min(i+256, len(data))])
                     time.sleep(0.01)
                 return n
-            except SerialException:
+            except (SerialException, OSError):
                 self.__connect()
         raise SerialException("write failed")
 
-
     def close(self):
         self.__serial.close()
+
+    def __enter__(self):
+        res = super().__enter__()
+        self.__connect()
+        return res
 
     def __eq__(self, other):
         return isinstance(other, SerialDevice) and self.__port == other.__port
 
     def __hash__(self):
-        return hash(self.__port)
+        return self.__port
 
     def __repr__(self) -> str:
         return f"SerialDevice {self.uid}, age {self.age:.1f}s at {self.__port}, {self.__baudrate} baud ({self.__description})"
