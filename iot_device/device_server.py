@@ -128,7 +128,7 @@ class DeviceServer():
                 with self.__discovery as devices:
                     for dev in devices:
                         if dev.age > self.__max_age: 
-                            # logger.debug(f"Not advertising {dev} due to age")
+                            # logger.debug(f"Not advertising {dev}, age {dev.age} > {self.max_age}")
                             continue
                         msg = {
                             'uid': dev.uid,
@@ -141,14 +141,14 @@ class DeviceServer():
                         # logger.debug(f"Advertise {dev}")
             except Exception as e:
                 # restart, e.g. in case of [Errno 51] Network is unreachable
-                logger.exception(f"Error in advertise, restablishing connection: {e}")
+                logger.exception(f"Network unreachabl (advertise), attempting to reconnect: {e}")
                 if s:
                     try:
                         s.close()
                     except:
                         pass
                 time.sleep(5)
-            time.sleep(max(1, self.__max_age-2))
+            time.sleep(Config.get('device_scan_interval', 1))
 
     def __my_ip(self):
         # determine host's ip address
@@ -187,7 +187,7 @@ def main():
 
     from .discover_serial import DiscoverSerial
     discover = DiscoverSerial()
-    server = DeviceServer(discover)
+    server = DeviceServer(discover, 5*Config.get('device_scan_interval', 1))
     print("started server", server)
 
     while True:

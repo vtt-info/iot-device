@@ -27,7 +27,7 @@ class NetDevice(Device):
             if b:
                 res.extend(b)
             else:
-                raise ConnectionResetError(f"Connection to {self.uid} reset")
+                raise ConnectionResetError(f"Connection to {self.uid} closed")
         return res
 
     def read_all(self):
@@ -35,7 +35,7 @@ class NetDevice(Device):
         if b: 
             return b
         else:
-            raise ConnectionResetError(f"Connection to {self.uid} reset")
+            raise ConnectionResetError(f"Connection to {self.uid} closed")
 
     def write(self, data):
         self.__socket.sendall(data)

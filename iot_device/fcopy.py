@@ -74,7 +74,7 @@ def _mcu_write(local_file, remote_file, filesize, binary):
                 buf_remaining = read_size
                 buf_index = 0
                 while buf_remaining > 0:
-                    bytes_read = sys.stdin.readinto(read_buf, bytes_remaining)
+                    bytes_read = sys.stdin.readinto(read_buf, bytes_remaining)  # pylint: disable=no-member
                     if bytes_read > 0:
                         write_buf[buf_index:bytes_read] = read_buf[0:bytes_read]
                         buf_index += bytes_read
