@@ -4,15 +4,15 @@ import setuptools
 from iot_device import version
 
 install_requires = [
-    "pyserial>=3.4",
-    "termcolor>=1.1.0",
-    "pyopenssl>=19.1.0",
+    "pyserial",
+    "termcolor",
+    "pyopenssl",
 ]
 
 setuptools.setup(
     name="iot-device",
     version=version.__version__,
-    packages=[ 'iot_device'],
+    packages=[ 'iot_device' ],
     author="Bernhard Boser",
     description="Communication with IoT Device (MicroPython) over serial, internet, ...",
     long_description="none",
@@ -29,7 +29,9 @@ setuptools.setup(
     include_package_data=True,
     entry_points = {
         'console_scripts': [
-            'iot49server=iot_device.device_server:main',
+            'iot_server=iot_device.device_server:main',
+            'iot_discover_serial=iot_device.discover_serial:main',
+            'iot_discover_net=iot_device.discover_net:main',
         ],
     },
     scripts = [ 'server.sh' ],

@@ -1,7 +1,9 @@
 from .certificate import create_key_cert_pair
 from .config_store import Config
 
+from serial import SerialException
 import socket
+import selectors
 import ssl
 import threading
 import json
@@ -30,73 +32,93 @@ class DeviceServer():
         th.start()
 
     def __device_server(self):
-        # note: serving only a single connection at a time!
-        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # serve multiple connections to different devices in parallel
+        self.__sel = selectors.DefaultSelector()
+        lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         port = Config.get('connection_server_port')
-        srv.bind(('', port))
-        srv.listen()
+        lsock.bind(('', port))
+        lsock.listen()
+        logger.info(f"Listening for connections on {self.__ip}:{port}")
+        lsock.setblocking(False)
+        self.__sel.register(lsock, selectors.EVENT_READ, data=None)
         while True:
-            logger.info(f"Accepting connections on {self.__ip}:{port}")
-            client_socket, addr = srv.accept()
-            logger.info(f"Connection from {client_socket} {addr}")
-            client_socket = self.__ssl_context.wrap_socket(client_socket, server_side=True)
-            # More quickly detect bad clients who quit without closing the
-            # connection: After 1 second of idle, start sending TCP keep-alive
-            # packets every 1 second. If 3 consecutive keep-alive packets
-            # fail, assume the client is gone and close the connection.
-            try:
-                client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
-                client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
-                client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
-                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            except AttributeError:
-                pass  # not available on windows
-            client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            try:
-                # get uid and password
-                uid_pwd = json.loads(client_socket.recv(1024).decode())
-                uid = uid_pwd.get('uid', '?')
-                logger.debug(f"Connection from {addr} to {uid}")
-                # check password
-                if uid_pwd.get('password') != Config.get('password'):
-                    client_socket.write(b'wrong password')
+            events = self.__sel.select(timeout=None)
+            for key, mask in events:
+                if key.data is None:
+                    # connect request (key.fileobj is socket)
+                    self.__accept_wrapper(key.fileobj)
                 else:
-                    device = self.__discovery.get_device(uid)
-                    if not device:
-                        client_socket.write(b'device not known')
-                    else:
-                        client_socket.write(b'ok')
-                        self.__serve_device(device, client_socket)
-            except Exception as e:
-                # run "forever"
-                logger.exception(f"{type(e).__name__} in __device_server: {e}")
-            finally:
-                logger.info(f"Disconnected {uid}")
-                client_socket.close()
+                    # client connection
+                    self.__service_connection(key, mask)
 
-    def __serve_device(self, device, client_socket):
-        client_socket.setblocking(False)
-        while True:
-            # client_socket --> device.write
-            try:
-                msg = client_socket.recv(256)
-                if not len(msg): 
-                    break
-                device.write(msg)
-            except ssl.SSLWantReadError:
-                pass
-            except ConnectionResetError:
-                break
-            # device.read_all --> client_socket
-            msg = device.read_all()
-            if len(msg) > 0: 
-                client_socket.sendall(msg)
+    def __accept_wrapper(self, sock):
+        # accept connection
+        conn, addr = sock.accept()
+        conn = self.__ssl_context.wrap_socket(conn, server_side=True)
+        # More quickly detect bad clients who quit without closing the
+        # connection: After 1 second of idle, start sending TCP keep-alive
+        # packets every 1 second. If 3 consecutive keep-alive packets
+        # fail, assume the client is gone and close the connection.
+        try:
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        except AttributeError:
+            pass  # not available on windows
+        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        # get uid and password (blocking recv)
+        # TODO: check for incomplete message!
+        uid_pwd = json.loads(conn.recv(1024).decode())
+        uid = uid_pwd.get('uid', '?')
+        device = self.__discovery.get_device(uid)
+        logger.debug(f"Request from {addr} to {uid}")
+        # check password & device status
+        ans = None
+        if uid_pwd.get('password') != Config.get('password'):
+            ans = b'wrong password'
+        elif not device:
+            ans = b'no such device'
+        elif device.locked:
+            ans = b'device busy'
+        if ans:
+            conn.write(ans)
+            conn.close()
+        else:
+            conn.write(b'ok')
+            conn.setblocking(False)
+            device.__enter__()
+            events = selectors.EVENT_READ | selectors.EVENT_WRITE
+            self.__sel.register(conn, events, data=device)
+
+    def __service_connection(self, key, mask):
+        try:
+            sock = key.fileobj
+            device = key.data
+            if mask & selectors.EVENT_READ:
+                recv_data = sock.recv(256)
+                if recv_data:
+                    device.write(recv_data)
+                else:
+                    logger.info(f"Closing connection to {device.uid}")
+                    self.__sel.unregister(sock)
+                    sock.close()
+                    device.__exit__(None, None, None)
+            if mask & selectors.EVENT_WRITE:
+                # forward data from device, if any
+                msg = device.read_all()
+                if len(msg) > 0: 
+                    sock.sendall(msg)            
+        except (SerialException, ConnectionResetError) as e:
+            logger.info(f"Communication with {device.uid} failed, closing connection ({e})")
+            self.__sel.unregister(sock)
+            sock.close()
+            device.__exit__(None, None, None)
 
     def __advertise(self):
         s = None
         while True:
-            logger.debug("__advertise start")
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP socket
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -106,7 +128,7 @@ class DeviceServer():
                 with self.__discovery as devices:
                     for dev in devices:
                         if dev.age > self.__max_age: 
-                            logger.debug(f"Not advertising {dev} due to age")
+                            # logger.debug(f"Not advertising {dev} due to age")
                             continue
                         msg = {
                             'uid': dev.uid,
@@ -116,7 +138,7 @@ class DeviceServer():
                         }
                         data = json.dumps(msg)
                         s.sendto(data.encode(), ('255.255.255.255', advertise_port))
-                        logger.debug(f"Advertise {dev}")
+                        # logger.debug(f"Advertise {dev}")
             except Exception as e:
                 # restart, e.g. in case of [Errno 51] Network is unreachable
                 logger.exception(f"Error in advertise, restablishing connection: {e}")

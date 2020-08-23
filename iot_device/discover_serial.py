@@ -29,12 +29,12 @@ class DiscoverSerial(Discover):
         try:
             for port in serial.tools.list_ports.comports():
                 if port.vid in COMPATIBLE_VID:
-                    logger.debug(f"found {port.device}")
                     if not self.has_key(port.device):
+                        logger.debug(f"Found {port.device}")
                         dev = SerialDevice(port.device, f"{port.product} by {port.manufacturer}")
                         self.add_device(dev)
                 elif port.vid:
-                    logger.info("found {} with unknown VID {:02X} (ignored)".format(port, port.vid))
+                    logger.info("Found {} with unknown VID {:02X} (ignored)".format(port, port.vid))
         except Exception as e:
             logger.exception(f"Error in scan: {e}")
 

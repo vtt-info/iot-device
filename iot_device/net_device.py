@@ -10,7 +10,6 @@ import logging
 
 logger = logging.getLogger(__file__)
 
-
 class PasswordError(Exception):
     pass
 
@@ -23,13 +22,20 @@ class NetDevice(Device):
 
     def read(self, size=1):
         res = bytearray()
-        # self.__socket.settimeout(0.1)
         while len(res) < size:
-            res.extend(self.__socket.recv(size-len(res)))
+            b = self.__socket.recv(size-len(res))
+            if b:
+                res.extend(b)
+            else:
+                raise ConnectionResetError(f"Connection to {self.uid} reset")
         return res
 
     def read_all(self):
-        return self.__socket.recv(1024)
+        b = self.__socket.recv(1024)
+        if b: 
+            return b
+        else:
+            raise ConnectionResetError(f"Connection to {self.uid} reset")
 
     def write(self, data):
         self.__socket.sendall(data)
@@ -50,6 +56,7 @@ class NetDevice(Device):
 
     def __connect(self):
         # establish connection to server
+        logger.debug("net_device.__connect")
         assert self.__socket == None
         self.__socket = socket.socket()
         context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
@@ -58,12 +65,16 @@ class NetDevice(Device):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
         self.__socket = context.wrap_socket(self.__socket)
+        logger.debug("net_device.__connect  -- socket.connect")
         self.__socket.connect(self.__address)
+        logger.debug("net_device.__connect  -- setsockopt")
         self.__socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # password check
+        logger.debug("net_device.__connect  -- send pwd")
         msg = { 'uid': self.uid, 'password': Config.get('password') }
         self.write(json.dumps(msg).encode())
+        logger.debug("net_device.__connect  -- wait for ok")
         msg = self.read_all()
         if msg != b'ok':
             raise PasswordError(msg)

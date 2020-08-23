@@ -132,13 +132,15 @@ def main():
     while (True):
         # discover.scan()
         with discover as devices:
+            if len(devices) < 1:
+                print("no devices on-line ...")
+                time.sleep(1)
             for dev in devices:
                 try:
                     print('-'*40, dev)
                     if dev.age > 10:
                         print(f"skipping old device {dev.uid} age = {dev.age:.1f}s")
                         continue
-                    print("wait dev as repl:")
                     with dev as repl:
                         # sync time ...
                         print(f"before sync: get_time = {repl.get_time()}")
@@ -187,6 +189,8 @@ def main():
                         repl.rsync(Output())
                 except SerialException as se:
                     print(f"SerialException in DiscoverSerial.main: {se}")
+                except ConnectionResetError as cre:
+                    print(f"ConnectionResetError in DiscoverSerial.main: {cre}")
                 except OSError as oe:
                     print(f"OSError in DiscoverSerial.main: {oe}")
         print()           

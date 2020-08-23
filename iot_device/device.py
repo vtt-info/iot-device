@@ -38,10 +38,6 @@ class Device(ABC):
         """Writes data"""
         pass
 
-    @abstractmethod
-    def __hash__(self):
-        pass
-
     def close(self):
         pass
 
@@ -54,7 +50,8 @@ class Device(ABC):
         while not result.endswith(pattern):
             if (time.monotonic() - start) > timeout:
                 raise TimeoutError(f"Timeout reading from IoT device, got '{result}', expect '{pattern}'")
-            result.extend(self.read(size=1))
+            b = self.read(size=1)
+            result.extend(b)
         return result
 
     @property
@@ -74,6 +71,14 @@ class Device(ABC):
 
     def __eq__(self, other):
         return self == other
+
+    @abstractmethod
+    def __hash__(self):
+        pass
+
+    @property
+    def locked(self) -> bool:
+        return self.__lock.locked()
 
     def __enter__(self) -> Rsync:
         self.__lock.acquire()
