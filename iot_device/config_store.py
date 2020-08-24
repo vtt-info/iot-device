@@ -59,26 +59,28 @@ class Config:
     @staticmethod
     def get_config(file='config.py'):
         """Load configuration from cache or disk."""
+        config = default_config.copy()
         # check mtime
-        iot49_dir = os.path.expanduser(os.getenv('IOT49', '~'))
+        iot49_dir = os.path.expanduser(os.getenv('IOT49', '~/iot49'))
         config_file = os.path.join(iot49_dir, 'mcu/base', file)
-        mtime = os.path.getmtime(config_file)
-        # check cache
-        config, last_mtime = Config.__config_cache.get(file, (None, 0))
-        if not config or mtime > last_mtime:
-            try:
-                config = default_config.copy()
-                with open(config_file) as f:
-                    exec(f.read(), config)
-                del config['__builtins__']
-                config['version'] = __version__
-                Config.__config_cache[file] = (config, mtime)
-            except NameError as ne:
-                sys.exit("{} while reading {}".format(ne, config_file))
-            except OSError as ose:
-                sys.exit("{} while reading {}".format(ose, config_file))
-            except SyntaxError as se:
-                sys.exit("{} in {}".format(se, config_file))
+        if os.path.isfile(config_file):
+            mtime = os.path.getmtime(config_file)
+            # check cache
+            config, last_mtime = Config.__config_cache.get(file, (None, 0))
+            if not config or mtime > last_mtime:
+                try:
+                    config = default_config.copy()
+                    with open(config_file) as f:
+                        exec(f.read(), config)
+                    del config['__builtins__']
+                    config['version'] = __version__
+                    Config.__config_cache[file] = (config, mtime)
+                except NameError as ne:
+                    sys.exit("{} while reading {}".format(ne, config_file))
+                except OSError as ose:
+                    sys.exit("{} while reading {}".format(ose, config_file))
+                except SyntaxError as se:
+                    sys.exit("{} in {}".format(se, config_file))
         return config
 
 

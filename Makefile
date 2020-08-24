@@ -5,10 +5,10 @@ tag:
 dist: 
 	python3 setup.py sdist bdist_wheel
 
-publish-test: dist
+publish-test: clean dist
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
-publish: dist
+publish: clean dist
 	twine upload dist/*
 
 test: 
@@ -20,3 +20,7 @@ coverage: test
 docs: 
 	cd docs; make html
 	open docs/_build/html/index.html
+
+clean:
+	rm -rf dist
+	rm -rf *egg-info

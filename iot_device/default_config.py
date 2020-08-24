@@ -3,7 +3,7 @@
 import os
 
 default_config = {
-    'host_dir': os.path.join(os.getenv('IOT49', '~'), 'mcu'),
+    'host_dir': os.path.join(os.getenv('IOT49', '~/iot49'), 'mcu'),
     'mcu_dir': '/volumes/CIRCUITPY',
     'device_scan_interval': 1.0,
     'advertise_port': 50003,
