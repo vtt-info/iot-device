@@ -34,7 +34,6 @@ class Fcopy(Repl):
 
     def fget(self, remote_file, local_file):
         filesize = self.file_size(remote_file)
-        print(f"fget: filesize {remote_file} = {filesize}")
         if filesize < 0:
             return False
         return self.eval_func(_mcu_read, remote_file, local_file, filesize, xfer_func=_host_write)

@@ -1,6 +1,6 @@
 from .fcopy import Fcopy
 from .config_store import Config
-from termcolor import colored
+from termcolor import colored    # pylint: disable=import-error
 
 from datetime import datetime
 import os
@@ -189,7 +189,6 @@ class PathOutput:
         self.path_stack = []
         self.files = {}
         self.output = output
-        output.ans("Comparing ")
 
     def ans(self, b):
         line = b.strip()

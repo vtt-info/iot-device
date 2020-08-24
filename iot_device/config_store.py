@@ -36,7 +36,7 @@ class Config:
                 return k
             if isinstance(v, dict) and v.get('name') == host_name:
                 return k
-        return None
+        return host_name
 
     @staticmethod
     def uid2hostname(uid):
