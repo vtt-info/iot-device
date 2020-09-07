@@ -2,7 +2,7 @@
 
 ## TODO
 
-* send age (Device.__seen) with advertising message
+* make sure age of NetDevice is correct
 
 ## Usage Example:
 
