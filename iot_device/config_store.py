@@ -61,7 +61,7 @@ class Config:
         """Load configuration from cache or disk."""
         config = default_config.copy()
         # check mtime
-        iot49_dir = os.path.expanduser(os.getenv('IOT49', '~/iot49'))
+        iot49_dir = os.path.expanduser(os.getenv('IOT49', '~'))
         config_file = os.path.join(iot49_dir, 'mcu/base', file)
         if os.path.isfile(config_file):
             mtime = os.path.getmtime(config_file)
