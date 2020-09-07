@@ -1,5 +1,9 @@
 # IoT Device
 
+## TODO
+
+* send age (Device.__seen) with advertising message
+
 ## Usage Example:
 
 ```python

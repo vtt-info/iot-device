@@ -134,7 +134,8 @@ class DeviceServer():
                             'uid': dev.uid,
                             'ip_addr': self.__ip,
                             'ip_port': Config.get('connection_server_port'),
-                            'protocol': 'repl'
+                            'protocol': 'repl',
+                            'last_seen': dev.last_seen,
                         }
                         data = json.dumps(msg)
                         s.sendto(data.encode(), ('255.255.255.255', advertise_port))

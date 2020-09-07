@@ -10,13 +10,14 @@ logger = logging.getLogger(__file__)
 
 class Device(ABC):
 
-    def __init__(self, uid=None):
+    def __init__(self, uid=None, last_seen=0):
         self.__lock = threading.Lock()
         if uid:
             self.__uid = uid
         else:
             with self as repl:
                 self.__uid = repl.uid
+        self.__seen = last_seen
         logger.debug(f"Created {self}")
 
     @property
@@ -59,11 +60,12 @@ class Device(ABC):
         """Time in seconds since seen was last called.
         Used to "prune" devices gone offline.
         """
-        try:
-            self.__seen
-        except AttributeError:
-            self.__seen = 0
         return time.monotonic() - self.__seen 
+
+    @property
+    def last_seen(self) -> float:
+        """Time last seen (time.monotonic)."""
+        return self.__seen
 
     def seen(self):
         """Set age to zero."""
